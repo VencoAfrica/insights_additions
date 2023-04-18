@@ -1,0 +1,18 @@
+include MANIFEST.in
+include requirements.txt
+include *.json
+include *.md
+include *.py
+include *.txt
+recursive-include insights_changes *.css
+recursive-include insights_changes *.csv
+recursive-include insights_changes *.html
+recursive-include insights_changes *.ico
+recursive-include insights_changes *.js
+recursive-include insights_changes *.json
+recursive-include insights_changes *.md
+recursive-include insights_changes *.png
+recursive-include insights_changes *.py
+recursive-include insights_changes *.svg
+recursive-include insights_changes *.txt
+recursive-exclude insights_changes *.pyc
