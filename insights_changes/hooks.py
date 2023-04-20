@@ -1,4 +1,4 @@
-from . import __version__ as app_version
+from . import __version__ as app_version  # noqa: F401
 
 app_name = "insights_changes"
 app_title = "Insights Changes"
@@ -42,7 +42,7 @@ app_license = "MIT"
 
 # website user home page (by Role)
 # role_home_page = {
-#	"Role": "home_page"
+# 	"Role": "home_page"
 # }
 
 # Generators
@@ -56,8 +56,8 @@ app_license = "MIT"
 
 # add methods and filters to jinja environment
 # jinja = {
-#	"methods": "insights_changes.utils.jinja_methods",
-#	"filters": "insights_changes.utils.jinja_filters"
+# 	"methods": "insights_changes.utils.jinja_methods",
+# 	"filters": "insights_changes.utils.jinja_filters"
 # }
 
 # Installation
@@ -83,11 +83,11 @@ app_license = "MIT"
 # Permissions evaluated in scripted ways
 
 # permission_query_conditions = {
-#	"Event": "frappe.desk.doctype.event.event.get_permission_query_conditions",
+# 	"Event": "frappe.desk.doctype.event.event.get_permission_query_conditions",
 # }
 #
 # has_permission = {
-#	"Event": "frappe.desk.doctype.event.event.has_permission",
+# 	"Event": "frappe.desk.doctype.event.event.has_permission",
 # }
 
 # DocType Class
@@ -95,40 +95,44 @@ app_license = "MIT"
 # Override standard doctype classes
 
 # override_doctype_class = {
-#	"ToDo": "custom_app.overrides.CustomToDo"
+# 	"ToDo": "custom_app.overrides.CustomToDo"
 # }
+override_doctype_class = {
+    "Insights Table": "insights_changes.overrides.doctype.CustomInsightsTable",
+    "Insights Data Source": "insights_changes.overrides.doctype.CustomInsightsDataSource",
+}
 
 # Document Events
 # ---------------
 # Hook on document methods and events
 
 # doc_events = {
-#	"*": {
-#		"on_update": "method",
-#		"on_cancel": "method",
-#		"on_trash": "method"
-#	}
+# 	"*": {
+# 		"on_update": "method",
+# 		"on_cancel": "method",
+# 		"on_trash": "method"
+# 	}
 # }
 
 # Scheduled Tasks
 # ---------------
 
 # scheduler_events = {
-#	"all": [
-#		"insights_changes.tasks.all"
-#	],
-#	"daily": [
-#		"insights_changes.tasks.daily"
-#	],
-#	"hourly": [
-#		"insights_changes.tasks.hourly"
-#	],
-#	"weekly": [
-#		"insights_changes.tasks.weekly"
-#	],
-#	"monthly": [
-#		"insights_changes.tasks.monthly"
-#	],
+# 	"all": [
+# 		"insights_changes.tasks.all"
+# 	],
+# 	"daily": [
+# 		"insights_changes.tasks.daily"
+# 	],
+# 	"hourly": [
+# 		"insights_changes.tasks.hourly"
+# 	],
+# 	"weekly": [
+# 		"insights_changes.tasks.weekly"
+# 	],
+# 	"monthly": [
+# 		"insights_changes.tasks.monthly"
+# 	],
 # }
 
 # Testing
@@ -140,14 +144,18 @@ app_license = "MIT"
 # ------------------------------
 #
 # override_whitelisted_methods = {
-#	"frappe.desk.doctype.event.event.get_events": "insights_changes.event.get_events"
+# 	"frappe.desk.doctype.event.event.get_events": "insights_changes.event.get_events"
 # }
+override_whitelisted_methods = {
+    "insights.api.get_data_source": "insights_changes.overrides.api.get_data_source",
+    "insights.api.get_tables": "insights_changes.overrides.api.get_tables",
+}
 #
 # each overriding function accepts a `data` argument;
 # generated from the base implementation of the doctype dashboard,
 # along with any modifications made in other Frappe apps
 # override_doctype_dashboards = {
-#	"Task": "insights_changes.task.get_dashboard_data"
+# 	"Task": "insights_changes.task.get_dashboard_data"
 # }
 
 # exempt linked doctypes from being automatically cancelled
@@ -173,29 +181,29 @@ app_license = "MIT"
 # --------------------
 
 # user_data_fields = [
-#	{
-#		"doctype": "{doctype_1}",
-#		"filter_by": "{filter_by}",
-#		"redact_fields": ["{field_1}", "{field_2}"],
-#		"partial": 1,
-#	},
-#	{
-#		"doctype": "{doctype_2}",
-#		"filter_by": "{filter_by}",
-#		"partial": 1,
-#	},
-#	{
-#		"doctype": "{doctype_3}",
-#		"strict": False,
-#	},
-#	{
-#		"doctype": "{doctype_4}"
-#	}
+# 	{
+# 		"doctype": "{doctype_1}",
+# 		"filter_by": "{filter_by}",
+# 		"redact_fields": ["{field_1}", "{field_2}"],
+# 		"partial": 1,
+# 	},
+# 	{
+# 		"doctype": "{doctype_2}",
+# 		"filter_by": "{filter_by}",
+# 		"partial": 1,
+# 	},
+# 	{
+# 		"doctype": "{doctype_3}",
+# 		"strict": False,
+# 	},
+# 	{
+# 		"doctype": "{doctype_4}"
+# 	}
 # ]
 
 # Authentication and authorization
 # --------------------------------
 
 # auth_hooks = [
-#	"insights_changes.auth.validate"
+# 	"insights_changes.auth.validate"
 # ]
