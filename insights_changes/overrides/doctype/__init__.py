@@ -49,6 +49,7 @@ class CustomInsightsTable(InsightsTable):
         row = self.columns.pop()
         row.idx = -1
         self.columns.insert(0, row)
+        # TODO: add missing columns from other data sources
 
     @frappe.whitelist()
     def get_preview(self):
@@ -66,3 +67,8 @@ class CustomInsightsDataSource(InsightsDataSource):
         if self.is_virtual:
             return VirtualDB(self.name)
         return super().db
+
+    def validate(self):
+        if self.is_virtual:
+            return
+        return super().validate()

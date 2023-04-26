@@ -62,6 +62,11 @@ def get_tables(data_source=None, with_query_tables=False):
     if not data_source:
         return []
 
+    if not frappe.db.get_value("Insights Data Source", data_source, "is_virtual"):
+        from insights.api import get_tables as _get_tables
+
+        return _get_tables(data_source=data_source, with_query_tables=with_query_tables)
+
     check_data_source_permission(data_source)
     filters = {
         "hidden": 0,
