@@ -5,7 +5,7 @@ from insights.insights.doctype.insights_team.insights_team import (
     check_data_source_permission,
     get_permission_filter,
 )
-from insights_changes.utils import get_sources_for_virtual
+from insights_changes.utils import get_sources_for_virtual, make_virtual_table_name
 
 fields_for_get_all_tables = ["name", "table", "label", "hidden"]
 
@@ -32,7 +32,7 @@ def get_data_source(name):
                     if not key[-1]:
                         continue
                     seen.pop(key)
-                table["name"] = f"{table['name']}::{name}"
+                table["name"] = make_virtual_table_name(table["name"], name)
                 seen[key] = table
 
     return {
@@ -95,7 +95,7 @@ def get_tables(data_source=None, with_query_tables=False):
                     if not key[-1]:
                         continue
                     seen.pop(key)
-                table["name"] = f"{table['name']}::{data_source}"
+                table["name"] = make_virtual_table_name(table["name"], data_source)
                 seen[key] = table
 
     return list(seen.values())
