@@ -56,7 +56,8 @@ class CustomInsightsTable(InsightsTable):
         data_source = frappe.get_doc(
             "Insights Data Source", self.virtual_data_source or self.data_source
         )
-        return data_source.get_table_preview(self.name)
+        # use self.name instead of self.table (data_source.get_table_preview)
+        return data_source.get_insights_table_preview(self.name)
 
 
 class CustomInsightsDataSource(InsightsDataSource):
@@ -72,3 +73,11 @@ class CustomInsightsDataSource(InsightsDataSource):
         if self.is_virtual:
             return
         return super().validate()
+
+    def get_insights_table_preview(self, table, limit=100):
+        db = self.db
+        if isinstance(db, VirtualDB):
+            return db.concurrent_get_insights_table_preview(table, limit)
+
+        db_table = frappe.get_value("Insights Table", table, "table")
+        return self.get_table_preview(db_table, limit)
