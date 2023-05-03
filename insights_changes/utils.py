@@ -1,4 +1,5 @@
 import frappe
+import pandas as pd
 
 
 def make_virtual_table_name(table_name, virtual_data_source_name):
@@ -8,6 +9,8 @@ def make_virtual_table_name(table_name, virtual_data_source_name):
 def split_virtual_table_name(virtual_table_name):
     if not virtual_table_name:
         return ("", "")
+    if not isinstance(virtual_table_name, str):
+        return (virtual_table_name, "")
 
     parts = tuple(virtual_table_name.rsplit("::", 1))
     if len(parts) < 2:
@@ -15,12 +18,12 @@ def split_virtual_table_name(virtual_table_name):
     return parts
 
 
-def get_sources_for_virtual(data_source, get_docs=True):
+def get_sources_for_virtual(data_source, get_docs=True, as_generator=False):
     if isinstance(data_source, str):
         data_source = frappe.get_doc("Insights Data Source", data_source)
 
     tags = [row.tag for row in data_source.get("sources")]
-    sources = [
+    sources = (
         (frappe.get_doc("Insights Data Source", r[0]) if get_docs else r[0])
         for r in frappe.get_list(
             "Tag Link",
@@ -28,9 +31,9 @@ def get_sources_for_virtual(data_source, get_docs=True):
             fields=["document_name"],
             as_list=1,
         )
-    ]
+    )
 
-    return sources
+    return sources if as_generator else list(sources)
 
 
 def get_columns_for_virtual_table(virtual_table, get_docs=True):
@@ -67,10 +70,20 @@ def add_data_source_column_to_table_columns(virtual_table):
     if isinstance(virtual_table, str):
         virtual_table = frappe.get_doc("Insights Table", virtual_table)
 
-    virtual_table.append(
-        "columns",
-        {"name": "*" * 10, "column": "data_source", "label": "Data Source", "type": "String"},
-    )
+    data_source_col = {
+        "name": "*" * 10,
+        "column": "data_source",
+        "label": "Data Source",
+        "type": "String",
+    }
+    if cols := virtual_table.get("columns"):
+        for key, val in data_source_col.items():
+            if cols[0].get(key) != val:
+                break
+        else:
+            return virtual_table
+
+    virtual_table.append("columns", data_source_col)
     # make first row
     row = virtual_table.columns.pop()
     row.idx = -1
@@ -90,3 +103,24 @@ def set_table_columns_for_df(data_frame, table_name, virtual_data_source):
             data_frame[col_name] = None
             df_column_names.add(col_name)
     return data_frame[column_names]
+
+
+def merge_query_results(results, query_doc):
+    include_data_source = False
+    for col in query_doc.columns:
+        if col.column == "data_source":
+            include_data_source = True
+            break
+
+    out = []
+    df = pd.DataFrame()
+    for data_source, result in results:
+        if not out and result and result[0] and isinstance(result[0][0], dict):
+            out.append(result[0])
+
+        new_df = pd.DataFrame(result[1:])
+        if include_data_source:
+            new_df.insert(0, "data_source", data_source)
+        df = pd.concat([df, new_df], ignore_index=True)
+
+    return out + df.to_numpy().tolist()

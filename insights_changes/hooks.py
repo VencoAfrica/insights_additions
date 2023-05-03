@@ -100,6 +100,7 @@ app_license = "MIT"
 override_doctype_class = {
     "Insights Table": "insights_changes.overrides.doctype.CustomInsightsTable",
     "Insights Data Source": "insights_changes.overrides.doctype.CustomInsightsDataSource",
+    "Insights Query": "insights_changes.overrides.doctype.CustomInsightsQuery",
 }
 
 # Document Events

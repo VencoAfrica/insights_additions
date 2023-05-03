@@ -7,8 +7,10 @@ from insights.insights.doctype.insights_data_source.insights_data_source import 
 from insights.insights.doctype.insights_data_source.sources.base_database import (
     BaseDatabase,
 )
+from insights.insights.doctype.insights_query.insights_query import InsightsQuery
 from insights.insights.doctype.insights_table.insights_table import InsightsTable
 from insights_changes.data_source import VirtualDB
+from insights_changes.overrides.api import get_tables
 from insights_changes.utils import (
     add_data_source_column_to_table_columns,
     get_columns_for_virtual_table,
@@ -51,6 +53,12 @@ class CustomInsightsTable(InsightsTable):
         self.columns = get_columns_for_virtual_table(self)
         add_data_source_column_to_table_columns(self)
 
+    def get_columns(self):
+        super().get_columns()
+        if self.virtual_data_source:
+            add_data_source_column_to_table_columns(self)
+        return self.columns
+
     @frappe.whitelist()
     def get_preview(self):
         data_source = frappe.get_doc(
@@ -81,3 +89,39 @@ class CustomInsightsDataSource(InsightsDataSource):
 
         db_table = frappe.get_value("Insights Table", table, "table")
         return self.get_table_preview(db_table, limit)
+
+
+class CustomInsightsQuery(InsightsQuery):
+    @frappe.whitelist()
+    def fetch_tables(self):
+        with_query_tables = frappe.db.get_single_value("Insights Settings", "allow_subquery")
+        return get_tables(self.data_source, with_query_tables)
+
+    @frappe.whitelist()
+    def fetch_columns(self):
+        if self.is_native_query:
+            return []
+
+        columns = []
+        selected_tables = self.get_selected_tables()
+        virtual_data_source = frappe.db.get_value(
+            "Insights Data Source", {"name": self.data_source, "is_virtual": 1}
+        )
+        for table in selected_tables:
+            table_doc = frappe.get_doc("Insights Table", {"table": table.get("table")})
+            table_doc.virtual_data_source = virtual_data_source
+            _columns = table_doc.get_columns()
+            columns += [
+                frappe._dict(
+                    {
+                        "table": table.get("table"),
+                        "table_label": table.get("label"),
+                        "column": c.get("column"),
+                        "label": c.get("label"),
+                        "type": c.get("type"),
+                        "data_source": self.data_source,
+                    }
+                )
+                for c in _columns
+            ]
+        return columns
