@@ -147,7 +147,7 @@ class VirtualDB(BaseDatabase):
 
             def get_data(source_doc):
                 frappe.connect(site=site)
-                return source_doc.db.get_column_options(query)
+                return source_doc.db.run_query(query)
 
             with concurrent.futures.ThreadPoolExecutor() as executor:
                 futures = {executor.submit(get_data, doc): doc.name for doc in source_docs}
@@ -159,7 +159,7 @@ class VirtualDB(BaseDatabase):
                         frappe.log_error(
                             "%r generated an exception: %s"
                             % (source_docname, frappe.get_traceback()),
-                            "get_column_options",
+                            "run_query",
                         )
                     else:
                         results.append((source_docname, data))
