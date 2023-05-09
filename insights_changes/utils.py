@@ -105,22 +105,78 @@ def set_table_columns_for_df(data_frame, table_name, virtual_data_source):
     return data_frame[column_names]
 
 
-def merge_query_results(results, query_doc):
+def merge_query_results(results, query_doc, base_query_doc=None):
     include_data_source = False
-    for col in query_doc.columns:
+    for col in (base_query_doc or query_doc).columns:
         if col.column == "data_source":
             include_data_source = True
             break
 
-    out = []
+    first_columns = []
     df = pd.DataFrame()
+
+    def is_lowercase_columns():
+        return first_columns and first_columns[0]["label"].islower()
+
     for data_source, result in results:
-        if not out and result and result[0] and isinstance(result[0][0], dict):
-            out.append(result[0])
+        assert result and result[0] and isinstance(result[0][0], dict)
+        columns = result[0]
+        if not first_columns:
+            first_columns = columns
 
         new_df = pd.DataFrame(result[1:])
+        new_df.columns = [col["label"] for col in columns]
         if include_data_source:
-            new_df.insert(0, "data_source", data_source)
+            data_source_col = "data_source" if is_lowercase_columns() else "Data Source"
+            new_df.insert(0, data_source_col, data_source)
         df = pd.concat([df, new_df], ignore_index=True)
 
-    return out + df.to_numpy().tolist()
+    colnames = []
+    df_cols = set(df.columns)
+    added_col = False
+    for row in query_doc.columns:
+        colname = row.column if is_lowercase_columns() else row.label
+        colnames.append(colname)
+        if colname not in df_cols:
+            df[colname] = None
+            added_col = True
+    if added_col:
+        df = df[colnames]
+
+    return [first_columns] + df.to_numpy().tolist()
+
+
+def query_with_columns_in_table(query, data_source_name):
+    """create a new query containing only the columns available in the data source"""
+    query_str = """SELECT tc.column,t.table
+        FROM `tabInsights Table Column`tc
+        JOIN `tabInsights Table`t
+            ON t.name = tc.parent
+        WHERE t.table in %(tables)s
+            AND t.data_source = %(data_source)s
+            AND tc.column in %(col_names)s
+    """
+
+    tables = [row.table for row in query.tables]
+    columns = [row.column for row in query.columns]
+    if not (tables and columns):
+        return query
+
+    found = frappe.db.sql(
+        query_str,
+        {
+            "data_source": data_source_name,
+            "tables": tables,
+            "col_names": columns,
+        },
+    )
+
+    new_query = frappe.copy_doc(query)
+    # remove columns not found in table for data source
+    cols_found = set(found)
+    new_query.columns = [
+        row
+        for row in new_query.columns
+        if (row.column, row.table) in cols_found and row.column != "data_source"
+    ]
+    return new_query

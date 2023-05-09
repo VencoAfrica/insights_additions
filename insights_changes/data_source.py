@@ -11,8 +11,11 @@ from insights.insights.query_builders.sql_builder import SQLQueryBuilder
 from insights_changes.utils import (
     get_sources_for_virtual,
     merge_query_results,
+    query_with_columns_in_table,
     set_table_columns_for_df,
 )
+
+SERIAL_LIMIT = 3
 
 
 class VirtualTableFactory:
@@ -46,64 +49,63 @@ class VirtualDB(BaseDatabase):
     # def sync_tables(self, tables=None, force=False):
     #     return super().sync_tables(tables, force)
 
-    def concurrent_get_insights_table_preview(self, insights_table, limit=100):
-        db_table = frappe.get_value("Insights Table", insights_table, "table") or insights_table
-        site = str(frappe.local.site)
-        source_docs = get_sources_for_virtual(self.data_source)
-        total_length = 0
-        df = pd.DataFrame()
-
-        # Retrieve a single page and report the URL and contents
-        def get_data(source_doc):
-            frappe.connect(site=site)
-            data = source_doc.db.execute_query(
-                f"""select * from `{db_table}` limit {limit}""", return_columns=True
-            )
-            length = source_doc.db.execute_query(f"""select count(*) from `{db_table}`""")[0][0]
-            return data, length
-
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            futures = {executor.submit(get_data, doc): doc.name for doc in source_docs}
-            for future in concurrent.futures.as_completed(futures):
-                source_docname = futures[future]
-                try:
-                    data, length = future.result()
-                except Exception:
-                    frappe.log_error(
-                        "%r generated an exception: %s" % (source_docname, frappe.get_traceback()),
-                        "concurrent_get_table_preview",
-                    )
-                else:
-                    columns = data.pop(0)
-                    column_names = [col["label"] for col in columns]
-                    new_df = pd.DataFrame(data)
-                    new_df.columns = column_names
-                    new_df.insert(0, "data_source", source_docname)
-                    df = pd.concat([df, new_df], ignore_index=True)
-                    total_length += length
-
-        # ensure columns order match that in InsightsTable.columns
-        df = set_table_columns_for_df(df, insights_table, self.data_source)
-        return {
-            "data": json.loads(df.to_json(orient="values", date_format="iso")),
-            "length": total_length,
-        }
-
     def get_insights_table_preview(self, insights_table, limit=100):
         db_table = frappe.get_value("Insights Table", insights_table, "table") or insights_table
+        source_docs = get_sources_for_virtual(self.data_source)
+        results = []
+
+        def run_serial():
+            for source_doc in source_docs:
+                data = source_doc.db.execute_query(
+                    f"""select * from `{db_table}` limit {limit}""", return_columns=True
+                )
+                length = source_doc.db.execute_query(f"""select count(*) from `{db_table}`""")[0][
+                    0
+                ]
+                results.append((source_doc.name, data, length))
+
+        def run_concurrent():
+            site = str(frappe.local.site)
+
+            def get_data(source_doc):
+                frappe.connect(site=site)
+                data = source_doc.db.execute_query(
+                    f"""select * from `{db_table}` limit {limit}""", return_columns=True
+                )
+                length = source_doc.db.execute_query(f"""select count(*) from `{db_table}`""")[0][
+                    0
+                ]
+                return data, length
+
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                futures = {executor.submit(get_data, doc): doc.name for doc in source_docs}
+                for future in concurrent.futures.as_completed(futures):
+                    source_docname = futures[future]
+                    try:
+                        data, length = future.result()
+                    except Exception:
+                        frappe.log_error(
+                            "%r generated an exception: %s"
+                            % (source_docname, frappe.get_traceback()),
+                            "concurrent_get_table_preview",
+                        )
+                    else:
+                        results.append((source_docname, data, length))
+
+        if len(source_docs) <= SERIAL_LIMIT:
+            run_serial()
+        else:
+            run_concurrent()
+
         total_length = 0
         df = pd.DataFrame()
-        for source_doc in get_sources_for_virtual(self.data_source):
-            data = source_doc.db.execute_query(
-                f"""select * from `{db_table}` limit {limit}""", return_columns=True
-            )
+        for source_docname, data, length in results:
             columns = data.pop(0)
             column_names = [col["label"] for col in columns]
             new_df = pd.DataFrame(data)
             new_df.columns = column_names
-            new_df.insert(0, "data_source", source_doc.name)
+            new_df.insert(0, "data_source", source_docname)
             df = pd.concat([df, new_df], ignore_index=True)
-            length = source_doc.db.execute_query(f"""select count(*) from `{db_table}`""")[0][0]
             total_length += length
 
         # ensure columns order match that in InsightsTable.columns
@@ -137,17 +139,19 @@ class VirtualDB(BaseDatabase):
         results = []
         source_docs = get_sources_for_virtual(self.data_source, get_docs=True)
 
-        def serial():
+        def run_serial():
             for source_doc in source_docs:
-                result = source_doc.db.run_query(query)
+                new_query = query_with_columns_in_table(query, source_doc.name)
+                result = source_doc.db.run_query(new_query)
                 results.append((source_doc.name, result))
 
-        def concurrent():
+        def run_concurrent():
             site = str(frappe.local.site)
 
             def get_data(source_doc):
                 frappe.connect(site=site)
-                return source_doc.db.run_query(query)
+                new_query = query_with_columns_in_table(query, source_doc.name)
+                return source_doc.db.run_query(new_query)
 
             with concurrent.futures.ThreadPoolExecutor() as executor:
                 futures = {executor.submit(get_data, doc): doc.name for doc in source_docs}
@@ -164,10 +168,10 @@ class VirtualDB(BaseDatabase):
                     else:
                         results.append((source_docname, data))
 
-        if len(source_docs) < 4:
-            serial()
+        if len(source_docs) <= SERIAL_LIMIT:
+            run_serial()
         else:
-            concurrent()
+            run_concurrent()
 
         return merge_query_results(results, query)
 
@@ -192,14 +196,14 @@ class VirtualDB(BaseDatabase):
         ]
         limit_per_source = max(limit // len(source_docs), 5)
 
-        def serial():
+        def run_serial():
             for source_doc in source_docs:
                 result = source_doc.db.get_column_options(
                     table=table, column=column, search_text=search_text, limit=limit_per_source
                 )
                 results.extend(result)
 
-        def concurrent():
+        def run_concurrent():
             site = str(frappe.local.site)
 
             def get_data(source_doc):
@@ -223,8 +227,8 @@ class VirtualDB(BaseDatabase):
                     else:
                         results.extend(data)
 
-        if len(source_docs) < 4:
-            serial()
+        if len(source_docs) <= SERIAL_LIMIT:
+            run_serial()
         else:
-            concurrent()
+            run_concurrent()
         return unique(results)

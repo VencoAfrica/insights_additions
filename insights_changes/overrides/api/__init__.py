@@ -15,7 +15,7 @@ fields_for_get_all_tables = ["name", "table", "label", "hidden"]
 def get_data_source(name):
     check_data_source_permission(name)
     doc = frappe.get_doc("Insights Data Source", name)
-    if not doc.is_virtual:
+    if not doc.composite_datasource:
         return get_data_source_original(name)
 
     # get tables for each source and combine
@@ -62,7 +62,7 @@ def get_tables(data_source=None, with_query_tables=False):
     if not data_source:
         return []
 
-    if not frappe.db.get_value("Insights Data Source", data_source, "is_virtual"):
+    if not frappe.db.get_value("Insights Data Source", data_source, "composite_datasource"):
         from insights.api import get_tables as _get_tables
 
         return _get_tables(data_source=data_source, with_query_tables=with_query_tables)

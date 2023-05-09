@@ -73,19 +73,19 @@ class CustomInsightsDataSource(InsightsDataSource):
 
     @cached_property
     def db(self) -> BaseDatabase:
-        if self.is_virtual:
+        if self.composite_datasource:
             return VirtualDB(self.name)
         return super().db
 
     def validate(self):
-        if self.is_virtual:
+        if self.composite_datasource:
             return
         return super().validate()
 
     def get_insights_table_preview(self, table, limit=100):
         db = self.db
         if isinstance(db, VirtualDB):
-            return db.concurrent_get_insights_table_preview(table, limit)
+            return db.get_insights_table_preview(table, limit)
 
         db_table = frappe.get_value("Insights Table", table, "table")
         return self.get_table_preview(db_table, limit)
@@ -105,7 +105,7 @@ class CustomInsightsQuery(InsightsQuery):
         columns = []
         selected_tables = self.get_selected_tables()
         virtual_data_source = frappe.db.get_value(
-            "Insights Data Source", {"name": self.data_source, "is_virtual": 1}
+            "Insights Data Source", {"name": self.data_source, "composite_datasource": 1}
         )
         for table in selected_tables:
             table_doc = frappe.get_doc("Insights Table", {"table": table.get("table")})
