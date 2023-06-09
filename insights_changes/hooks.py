@@ -114,6 +114,12 @@ override_doctype_class = {
 # 		"on_trash": "method"
 # 	}
 # }
+doc_events = {
+    "Insights Data Source": {
+        # "after_save": "insights_changes.overrides.doctype.add_data_source_table",
+        "on_update": "insights_changes.overrides.doctype.add_data_source_table",
+    }
+}
 
 # Scheduled Tasks
 # ---------------
