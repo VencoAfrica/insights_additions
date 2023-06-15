@@ -1,5 +1,6 @@
 from functools import cached_property
-
+from insights import notify
+from insights.insights.doctype.insights_data_source.insights_data_source import _sync_data_source
 import frappe
 from insights.insights.doctype.insights_data_source.insights_data_source import (
     InsightsDataSource,
@@ -16,6 +17,21 @@ from insights_changes.utils import (
     get_columns_for_virtual_table,
     split_virtual_table_name,
 )
+from insights.api.setup import add_database
+
+def add_data_source_table(doc, method=None):
+    print(doc.as_dict(), method)
+    if doc.status == "Active":
+        data_source =  doc
+        print(doc.as_dict(), method)
+        # data_source.save()
+        data_source.enqueue_sync_tables_for_end_point()
+        return doc, method
+    # return frappe.log_error(
+    #     doc,
+    #     "Testing My Hook",
+    # )
+   
 
 
 class CustomInsightsTable(InsightsTable):
@@ -33,12 +49,12 @@ class CustomInsightsTable(InsightsTable):
         if args and isinstance(args[0], str):
             name, to_replace = (args[0], 0) if len(args) == 1 else (args[1], 1)
             table_name, data_source = split_virtual_table_name(name)
-            if virtual := frappe.db.exists("Insights Data Source", data_source):
-                # TODO: confirm the data source is part of a virtual data source
-                # this may not be necessary if tags are used to link sources in virtual data source
+            if virtual:= frappe.db.exists("Insights Data Source", data_source):
+                    # TODO: confirm the data source is part of a virtual data source
+                   # this may not be necessary if tags are used to link sources in virtual data source
                 self.virtual_data_source = virtual
                 # load regular data source
-                args = (*args[:to_replace], table_name, *args[to_replace + 1 :])  # noqa: E203
+                args = (*args[:to_replace], table_name, *args[to_replace + 1:])  # noqa: E203
 
         # call original init
         super().__init__(*args, **kwargs)
@@ -80,6 +96,7 @@ class CustomInsightsDataSource(InsightsDataSource):
     def validate(self):
         if self.composite_datasource:
             return
+        frappe.log_error("Doc", "We Got here 4")
         return super().validate()
 
     def get_insights_table_preview(self, table, limit=100):
@@ -89,12 +106,34 @@ class CustomInsightsDataSource(InsightsDataSource):
 
         db_table = frappe.get_value("Insights Table", table, "table")
         return self.get_table_preview(db_table, limit)
+    @frappe.whitelist()
+    def enqueue_sync_tables_for_end_point(self):
+        from frappe.utils.scheduler import is_scheduler_inactive
+
+        if is_scheduler_inactive():
+            notify(
+                **{
+                    "title": "Error",
+                    "message": "Scheduler is inactive",
+                    "type": "error",
+                }
+            )
+
+        frappe.enqueue(
+            _sync_data_source,
+            data_source=self.name,
+            job_name="sync_data_source",
+            queue="long",
+            timeout=3600,
+        )
+
 
 
 class CustomInsightsQuery(InsightsQuery):
     @frappe.whitelist()
     def fetch_tables(self):
-        with_query_tables = frappe.db.get_single_value("Insights Settings", "allow_subquery")
+        with_query_tables = frappe.db.get_single_value(
+            "Insights Settings", "allow_subquery")
         return get_tables(self.data_source, with_query_tables)
 
     @frappe.whitelist()
@@ -105,10 +144,12 @@ class CustomInsightsQuery(InsightsQuery):
         columns = []
         selected_tables = self.get_selected_tables()
         virtual_data_source = frappe.db.get_value(
-            "Insights Data Source", {"name": self.data_source, "composite_datasource": 1}
+            "Insights Data Source", {
+                "name": self.data_source, "composite_datasource": 1}
         )
         for table in selected_tables:
-            table_doc = frappe.get_doc("Insights Table", {"table": table.get("table")})
+            table_doc = frappe.get_doc(
+                "Insights Table", {"table": table.get("table")})
             table_doc.virtual_data_source = virtual_data_source
             _columns = table_doc.get_columns()
             columns += [

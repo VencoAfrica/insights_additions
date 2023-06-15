@@ -180,3 +180,4 @@ def query_with_columns_in_table(query, data_source_name):
         if (row.column, row.table) in cols_found and row.column != "data_source"
     ]
     return new_query
+
