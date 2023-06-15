@@ -41,8 +41,9 @@ class VirtualTableFactory:
 
 
 class VirtualDB(BaseDatabase):
-    def __init__(self, data_source):
+    def __init__(self, data_source, data_source_doc=None):
         self.data_source = data_source
+        self.data_source_doc = data_source_doc
         self.query_builder: SQLQueryBuilder = SQLQueryBuilder()
         self.table_factory: VirtualTableFactory = VirtualTableFactory(data_source)
 
@@ -124,7 +125,7 @@ class VirtualDB(BaseDatabase):
         is_native_query=False,
     ):
         results = []
-        for source_doc in get_sources_for_virtual(self.data_source):
+        for source_doc in get_sources_for_virtual(self.data_source_doc or self.data_source):
             results.append(
                 source_doc.db.execute_query(
                     sql, pluck, return_columns, replace_query_tables, is_native_query

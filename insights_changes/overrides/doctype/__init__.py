@@ -74,7 +74,7 @@ class CustomInsightsDataSource(InsightsDataSource):
     @cached_property
     def db(self) -> BaseDatabase:
         if self.composite_datasource:
-            return VirtualDB(self.name)
+            return VirtualDB(self.name, self)
         return super().db
 
     def validate(self):
