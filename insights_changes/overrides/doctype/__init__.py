@@ -8,6 +8,7 @@ from insights.insights.doctype.insights_data_source.insights_data_source import 
 from insights.insights.doctype.insights_data_source.sources.base_database import (
     BaseDatabase,
 )
+from frappe.desk.doctype.tag.tag import add_tag
 from insights.insights.doctype.insights_query.insights_query import InsightsQuery
 from insights.insights.doctype.insights_table.insights_table import InsightsTable
 from insights_changes.data_source import VirtualDB
@@ -19,19 +20,19 @@ from insights_changes.utils import (
 )
 from insights.api.setup import add_database
 
+
+def add_venco_tag(doc, method=None):
+    if frappe.get_doc("Tag", "VENCO Site"):
+        add_tag("VENCO Site", doc.doctype, doc.name)
+        return True
+
+
 def add_data_source_table(doc, method=None):
-    print(doc.as_dict(), method)
     if doc.status == "Active":
-        data_source =  doc
-        print(doc.as_dict(), method)
-        # data_source.save()
+        data_source = doc
+        add_venco_tag(doc)
         data_source.enqueue_sync_tables_for_end_point()
         return doc, method
-    # return frappe.log_error(
-    #     doc,
-    #     "Testing My Hook",
-    # )
-   
 
 
 class CustomInsightsTable(InsightsTable):
@@ -51,7 +52,7 @@ class CustomInsightsTable(InsightsTable):
             table_name, data_source = split_virtual_table_name(name)
             if virtual:= frappe.db.exists("Insights Data Source", data_source):
                     # TODO: confirm the data source is part of a virtual data source
-                   # this may not be necessary if tags are used to link sources in virtual data source
+                 # this may not be necessary if tags are used to link sources in virtual data source
                 self.virtual_data_source = virtual
                 # load regular data source
                 args = (*args[:to_replace], table_name, *args[to_replace + 1:])  # noqa: E203
@@ -106,6 +107,7 @@ class CustomInsightsDataSource(InsightsDataSource):
 
         db_table = frappe.get_value("Insights Table", table, "table")
         return self.get_table_preview(db_table, limit)
+
     @frappe.whitelist()
     def enqueue_sync_tables_for_end_point(self):
         from frappe.utils.scheduler import is_scheduler_inactive
@@ -126,7 +128,6 @@ class CustomInsightsDataSource(InsightsDataSource):
             queue="long",
             timeout=3600,
         )
-
 
 
 class CustomInsightsQuery(InsightsQuery):

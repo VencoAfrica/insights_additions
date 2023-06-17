@@ -1,5 +1,5 @@
 import frappe
-from insights.api import get_data_source as get_data_source_original
+from insights.api import get_data_sources as get_data_source_original
 from insights.decorators import check_role
 from insights.insights.doctype.insights_team.insights_team import (
     check_data_source_permission,
@@ -95,7 +95,8 @@ def get_tables(data_source=None, with_query_tables=False):
                     if not key[-1]:
                         continue
                     seen.pop(key)
-                table["name"] = make_virtual_table_name(table["name"], data_source)
+                table["name"] = make_virtual_table_name(
+                    table["name"], data_source)
                 seen[key] = table
 
     return list(seen.values())
