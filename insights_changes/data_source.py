@@ -50,19 +50,26 @@ class VirtualDB(BaseDatabase):
     # def sync_tables(self, tables=None, force=False):
     #     return super().sync_tables(tables, force)
 
+    def get_source_docs(self, get_docs=True, as_generator=False):
+        return get_sources_for_virtual(
+            self.data_source_doc or self.data_source, get_docs=get_docs, as_generator=as_generator
+        )
+
     def get_insights_table_preview(self, insights_table, limit=100):
         db_table = frappe.get_value("Insights Table", insights_table, "table") or insights_table
-        source_docs = get_sources_for_virtual(self.data_source)
+        source_docs = self.get_source_docs()
         results = []
+
+        def get_data_and_length(source_doc):
+            data = source_doc.db.execute_query(
+                f"""select * from `{db_table}` limit {limit}""", return_columns=True
+            )
+            length = source_doc.db.execute_query(f"""select count(*) from `{db_table}`""")[0][0]
+            return data, length
 
         def run_serial():
             for source_doc in source_docs:
-                data = source_doc.db.execute_query(
-                    f"""select * from `{db_table}` limit {limit}""", return_columns=True
-                )
-                length = source_doc.db.execute_query(f"""select count(*) from `{db_table}`""")[0][
-                    0
-                ]
+                data, length = get_data_and_length(source_doc)
                 results.append((source_doc.name, data, length))
 
         def run_concurrent():
@@ -70,12 +77,7 @@ class VirtualDB(BaseDatabase):
 
             def get_data(source_doc):
                 frappe.connect(site=site)
-                data = source_doc.db.execute_query(
-                    f"""select * from `{db_table}` limit {limit}""", return_columns=True
-                )
-                length = source_doc.db.execute_query(f"""select count(*) from `{db_table}`""")[0][
-                    0
-                ]
+                data, length = get_data_and_length(source_doc)
                 return data, length
 
             with concurrent.futures.ThreadPoolExecutor() as executor:
@@ -125,7 +127,7 @@ class VirtualDB(BaseDatabase):
         is_native_query=False,
     ):
         results = []
-        for source_doc in get_sources_for_virtual(self.data_source_doc or self.data_source):
+        for source_doc in self.get_source_docs():
             results.append(
                 source_doc.db.execute_query(
                     sql, pluck, return_columns, replace_query_tables, is_native_query
@@ -134,11 +136,12 @@ class VirtualDB(BaseDatabase):
         return results
 
     def build_query(self, query):
-        return None
+        for source_doc in self.get_source_docs(get_docs=True, as_generator=True):
+            return source_doc.build_query(query)
 
     def run_query(self, query):
         results = []
-        source_docs = get_sources_for_virtual(self.data_source, get_docs=True)
+        source_docs = self.get_source_docs(get_docs=True)
 
         def run_serial():
             for source_doc in source_docs:
@@ -181,12 +184,12 @@ class VirtualDB(BaseDatabase):
 
     def get_column_options(self, table, column, search_text=None, limit=50):
         if column == "data_source":
-            return get_sources_for_virtual(self.data_source, get_docs=False)
+            return self.get_source_docs(get_docs=False)
 
         results = []
         source_docs = [
             doc
-            for doc in get_sources_for_virtual(self.data_source, get_docs=True, as_generator=True)
+            for doc in self.get_source_docs(get_docs=True, as_generator=True)
             if frappe.db.get_value(
                 "Insights Table",
                 filters=[
@@ -197,11 +200,14 @@ class VirtualDB(BaseDatabase):
         ]
         limit_per_source = max(limit // len(source_docs), 5)
 
+        def get_column_options(source_doc):
+            source_doc.db.get_column_options(
+                table=table, column=column, search_text=search_text, limit=limit_per_source
+            )
+
         def run_serial():
             for source_doc in source_docs:
-                result = source_doc.db.get_column_options(
-                    table=table, column=column, search_text=search_text, limit=limit_per_source
-                )
+                result = get_column_options(source_doc)
                 results.extend(result)
 
         def run_concurrent():
@@ -209,9 +215,7 @@ class VirtualDB(BaseDatabase):
 
             def get_data(source_doc):
                 frappe.connect(site=site)
-                return source_doc.db.get_column_options(
-                    table=table, column=column, search_text=search_text, limit=limit_per_source
-                )
+                return get_column_options(source_doc)
 
             with concurrent.futures.ThreadPoolExecutor() as executor:
                 futures = {executor.submit(get_data, doc): doc.name for doc in source_docs}

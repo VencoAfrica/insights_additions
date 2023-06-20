@@ -124,8 +124,9 @@ def merge_query_results(results, query_doc, base_query_doc=None):
         if not first_columns:
             first_columns = columns
 
-        new_df = pd.DataFrame(result[1:])
-        new_df.columns = [col["label"] for col in columns]
+        data = result[1:] if any(len(row) for row in result[1:]) else []
+        df_columns = [col["label"] for col in columns]
+        new_df = pd.DataFrame(data, columns=df_columns)
         if include_data_source:
             data_source_col = "data_source" if is_lowercase_columns() else "Data Source"
             new_df.insert(0, data_source_col, data_source)
