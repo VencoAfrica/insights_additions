@@ -10,11 +10,12 @@ from insights.insights.doctype.insights_data_source.sources.base_database import
 from insights.insights.doctype.insights_query.insights_query import InsightsQuery
 from insights.insights.doctype.insights_table.insights_table import InsightsTable
 from insights_changes.data_source import VirtualDB
-from insights_changes.overrides.api import get_tables
+from insights_changes.overrides.functions import get_tables
 from insights_changes.utils import (
     add_data_source_column_to_table_columns,
     get_columns_for_virtual_table,
     split_virtual_table_name,
+    validate_no_cycle_in_sources,
 )
 
 
@@ -79,6 +80,7 @@ class CustomInsightsDataSource(InsightsDataSource):
 
     def validate(self):
         if self.composite_datasource:
+            validate_no_cycle_in_sources(self)
             return
         return super().validate()
 
@@ -89,6 +91,11 @@ class CustomInsightsDataSource(InsightsDataSource):
 
         db_table = frappe.get_value("Insights Table", table, "table")
         return self.get_table_preview(db_table, limit)
+
+    def add_tag(self, tag):
+        out = super().add_tag(tag)
+        validate_no_cycle_in_sources(self)
+        return out
 
 
 class CustomInsightsQuery(InsightsQuery):

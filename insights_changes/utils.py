@@ -18,9 +18,12 @@ def split_virtual_table_name(virtual_table_name):
     return parts
 
 
-def get_sources_for_virtual(data_source, get_docs=True, as_generator=False):
+def get_single_sources_for_virtual(data_source, get_docs=True, as_generator=False):
     if isinstance(data_source, str):
         data_source = frappe.get_doc("Insights Data Source", data_source)
+
+    if not data_source.composite_datasource:
+        return (_ for _ in ()) if as_generator else []
 
     tags = [row.tag for row in data_source.get("sources")]
     sources = (
@@ -31,6 +34,40 @@ def get_sources_for_virtual(data_source, get_docs=True, as_generator=False):
             fields=["document_name"],
             as_list=1,
         )
+    )
+
+    return sources if as_generator else list(sources)
+
+
+def get_nested_sources_for_virtual(data_source):
+    if isinstance(data_source, str):
+        data_source = frappe.get_doc("Insights Data Source", data_source)
+    if not data_source.composite_datasource:
+        return set(), None
+
+    sources = set()
+    parents = {data_source.name}
+    children = set(get_single_sources_for_virtual(data_source, get_docs=False))
+    while children:
+        new_children = set()
+        new_parents = set()
+        for child_name in children:
+            if child_name in parents:
+                return sources, parents
+            child = frappe.get_doc("Insights Data Source", child_name)
+            new_children.update(get_single_sources_for_virtual(child, get_docs=False))
+            if child.composite_datasource:
+                new_parents.add(child_name)
+        parents.update(new_parents)
+        sources.update(children.difference(new_parents))
+        children = new_children
+    return sources, None
+
+
+def get_sources_for_virtual(data_source, get_docs=True, as_generator=False):
+    sources = (
+        (frappe.get_doc("Insights Data Source", source) if get_docs else source)
+        for source in get_nested_sources_for_virtual(data_source)[0]
     )
 
     return sources if as_generator else list(sources)
@@ -119,7 +156,8 @@ def merge_query_results(results, query_doc, base_query_doc=None):
         return first_columns and first_columns[0]["label"].islower()
 
     for data_source, result in results:
-        assert result and result[0] and isinstance(result[0][0], dict)
+        if not (result and result[0] and isinstance(result[0][0], dict)):
+            continue
         columns = result[0]
         if not first_columns:
             first_columns = columns
@@ -181,3 +219,29 @@ def query_with_columns_in_table(query, data_source_name):
         if (row.column, row.table) in cols_found and row.column != "data_source"
     ]
     return new_query
+
+
+def validate_no_cycle_in_sources(data_source_doc):
+    data_source = data_source_doc
+    if isinstance(data_source_doc, str):
+        if not frappe.db.exists("Insights Data Source", data_source_doc):
+            return
+        data_source = frappe.get_doc("Insights Data Source", data_source_doc)
+
+    if not data_source.composite_datasource:
+        return
+
+    doc_tags = {tag for tag in (data_source.get("_user_tags") or "").strip().split(",")}
+    sources_tags = {row.tag for row in data_source.get("sources")}
+
+    for tag in doc_tags:
+        if tag in sources_tags:
+            frappe.throw(
+                f"Tag '{tag}' cannot be applied to this document and "
+                "be included in 'sources' field at the same time"
+            )
+
+    # check for nested composite data sources and get docnames
+    _, cycle_source = get_nested_sources_for_virtual(data_source)
+    if cycle_source:
+        frappe.throw(f"Cycle detected in data sources: {frappe.as_json(cycle_source)}")

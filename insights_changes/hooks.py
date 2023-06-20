@@ -149,8 +149,9 @@ override_doctype_class = {
 # 	"frappe.desk.doctype.event.event.get_events": "insights_changes.event.get_events"
 # }
 override_whitelisted_methods = {
-    "insights.api.get_data_source": "insights_changes.overrides.api.get_data_source",
-    "insights.api.get_tables": "insights_changes.overrides.api.get_tables",
+    "insights.api.get_data_source": "insights_changes.overrides.functions.get_data_source",
+    "insights.api.get_tables": "insights_changes.overrides.functions.get_tables",
+    "frappe.desk.doctype.tag.tag.add_tag": "insights_changes.overrides.functions.add_tag",
 }
 #
 # each overriding function accepts a `data` argument;

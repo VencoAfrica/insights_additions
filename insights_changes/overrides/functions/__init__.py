@@ -1,11 +1,16 @@
 import frappe
+from frappe.desk.doctype.tag.tag import add_tag as add_tag_original
 from insights.api import get_data_source as get_data_source_original
 from insights.decorators import check_role
 from insights.insights.doctype.insights_team.insights_team import (
     check_data_source_permission,
     get_permission_filter,
 )
-from insights_changes.utils import get_sources_for_virtual, make_virtual_table_name
+from insights_changes.utils import (
+    get_sources_for_virtual,
+    make_virtual_table_name,
+    validate_no_cycle_in_sources,
+)
 
 fields_for_get_all_tables = ["name", "table", "label", "hidden"]
 
@@ -99,3 +104,11 @@ def get_tables(data_source=None, with_query_tables=False):
                 seen[key] = table
 
     return list(seen.values())
+
+
+@frappe.whitelist()
+def add_tag(tag, dt, dn, color=None):
+    out = add_tag_original(tag, dt, dn, color=color)
+    if dt == "Insights Data Source":
+        validate_no_cycle_in_sources(dn)
+    return out
