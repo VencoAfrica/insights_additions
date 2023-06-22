@@ -7,10 +7,13 @@ from insights.insights.doctype.insights_data_source.insights_data_source import 
 from insights.insights.doctype.insights_data_source.sources.base_database import (
     BaseDatabase,
 )
+from insights.insights.doctype.insights_data_source.sources.frappe_db import FrappeDB
+from insights.insights.doctype.insights_data_source.sources.mariadb import MariaDB
 from insights.insights.doctype.insights_query.insights_query import InsightsQuery
 from insights.insights.doctype.insights_table.insights_table import InsightsTable
 from insights_changes.data_source import VirtualDB
 from insights_changes.overrides.functions import get_tables
+from insights_changes.overrides.functions.is_frappe_db import is_frappe_db
 from insights_changes.utils import (
     add_data_source_column_to_table_columns,
     get_columns_for_virtual_table,
@@ -72,6 +75,25 @@ class CustomInsightsTable(InsightsTable):
 class CustomInsightsDataSource(InsightsDataSource):
     """`Virtual InsightsTable`"""
 
+    def get_database(self):
+        conn_args = {
+            "data_source": self.name,
+            "host": self.host,
+            "port": self.port,
+            "use_ssl": self.use_ssl,
+            "username": self.username,
+            "password": self.get_password(),
+            "database_name": self.database_name,
+        }
+
+        if is_frappe_db(conn_args):
+            return FrappeDB(**conn_args)
+
+        if self.database_type == "MariaDB":
+            return MariaDB(**conn_args)
+
+        frappe.throw(f"Unsupported database type: {self.database_type}")
+
     @cached_property
     def db(self) -> BaseDatabase:
         if self.composite_datasource:
@@ -99,6 +121,15 @@ class CustomInsightsDataSource(InsightsDataSource):
 
 
 class CustomInsightsQuery(InsightsQuery):
+    def fetch_results(self):
+        if self.flags.fetching_results:
+            return []
+
+        self.flags.fetching_results = True
+        out = super().fetch_results()
+        del self.flags.fetching_results
+        return out
+
     @frappe.whitelist()
     def fetch_tables(self):
         with_query_tables = frappe.db.get_single_value("Insights Settings", "allow_subquery")
