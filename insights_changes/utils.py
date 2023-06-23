@@ -78,7 +78,7 @@ def get_columns_for_virtual_table(virtual_table, get_docs=True):
         virtual_table = frappe.get_doc("Insights Table", virtual_table)
     data_source = frappe.get_doc("Insights Data Source", virtual_table.virtual_data_source)
 
-    columns = virtual_table.get("columns")
+    columns = virtual_table.get("columns") or []
     if columns:
         columns = columns[:]
         column_names = set(col.column for col in columns)

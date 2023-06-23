@@ -55,12 +55,19 @@ class CustomInsightsTable(InsightsTable):
         # TODO: avoid saving this to database
         # add columns from other tables for same virtual data source
         self.columns = get_columns_for_virtual_table(self)
+        self.flags.columns_for_virtual_table_gotten = True
         add_data_source_column_to_table_columns(self)
 
     def get_columns(self):
+        if not self.virtual_data_source:
+            return super().get_columns()
+
+        if not self.flags.columns_for_virtual_table_gotten:
+            self.__setup__()
+            return self.columns
+
         super().get_columns()
-        if self.virtual_data_source:
-            add_data_source_column_to_table_columns(self)
+        add_data_source_column_to_table_columns(self)
         return self.columns
 
     @frappe.whitelist()

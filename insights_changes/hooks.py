@@ -152,6 +152,7 @@ override_whitelisted_methods = {
     "insights.api.get_data_source": "insights_changes.overrides.functions.get_data_source",
     "insights.api.get_tables": "insights_changes.overrides.functions.get_tables",
     "frappe.desk.doctype.tag.tag.add_tag": "insights_changes.overrides.functions.add_tag",
+    "insights.insights.doctype.insights_dashboard.insights_dashboard.get_queries_column": "insights_changes.overrides.functions.get_queries_column",
 }
 #
 # each overriding function accepts a `data` argument;

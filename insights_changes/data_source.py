@@ -201,21 +201,20 @@ class VirtualDB(BaseDatabase):
         limit_per_source = max(limit // len(source_docs), 5)
 
         def get_column_options(source_doc):
-            source_doc.db.get_column_options(
+            return source_doc.db.get_column_options(
                 table=table, column=column, search_text=search_text, limit=limit_per_source
             )
 
         def run_serial():
             for source_doc in source_docs:
-                result = get_column_options(source_doc)
-                results.extend(result)
+                results.extend(get_column_options(source_doc) or [])
 
         def run_concurrent():
             site = str(frappe.local.site)
 
             def get_data(source_doc):
                 frappe.connect(site=site)
-                return get_column_options(source_doc)
+                return get_column_options(source_doc) or []
 
             with concurrent.futures.ThreadPoolExecutor() as executor:
                 futures = {executor.submit(get_data, doc): doc.name for doc in source_docs}
