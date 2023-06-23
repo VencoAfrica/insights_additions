@@ -216,7 +216,8 @@ def query_with_columns_in_table(query, data_source_name):
     new_query.columns = [
         row
         for row in new_query.columns
-        if (row.column, row.table) in cols_found and row.column != "data_source"
+        if row.column != "data_source"
+        and (row.aggregation or (row.column, row.table) in cols_found)
     ]
     return new_query
 

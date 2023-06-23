@@ -88,9 +88,9 @@ class VirtualDB(BaseDatabase):
                         data, length = future.result()
                     except Exception:
                         frappe.log_error(
-                            "%r generated an exception: %s"
-                            % (source_docname, frappe.get_traceback()),
-                            "concurrent_get_table_preview",
+                            "Data source: %r generated an exception: %s"
+                            % (source_docname, frappe.get_traceback(with_context=True)),
+                            "VirtualDB.get_insights_table_preview.run_concurrent",
                         )
                     else:
                         results.append((source_docname, data, length))
@@ -165,9 +165,9 @@ class VirtualDB(BaseDatabase):
                         data = future.result()
                     except Exception:
                         frappe.log_error(
-                            "%r generated an exception: %s"
-                            % (source_docname, frappe.get_traceback()),
-                            "run_query",
+                            "Data Source: %r generated an exception: %s"
+                            % (source_docname, frappe.get_traceback(with_context=True)),
+                            "VirtualDB.run_query.run_concurrent",
                         )
                     else:
                         results.append((source_docname, data))
