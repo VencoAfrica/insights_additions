@@ -9,9 +9,11 @@ from insights.insights.doctype.insights_data_source.sources.base_database import
 )
 from insights.insights.query_builders.sql_builder import SQLQueryBuilder
 from insights_changes.utils import (
+    apply_query_filters_for_datasource,
     get_sources_for_virtual,
     merge_query_results,
     query_with_columns_in_table,
+    remove_datasource_filters,
     set_table_columns_for_df,
 )
 
@@ -50,10 +52,12 @@ class VirtualDB(BaseDatabase):
     # def sync_tables(self, tables=None, force=False):
     #     return super().sync_tables(tables, force)
 
-    def get_source_docs(self, get_docs=True, as_generator=False):
-        return get_sources_for_virtual(
+    def get_source_docs(self, get_docs=True, as_generator=False, query=None):
+        sources = get_sources_for_virtual(
             self.data_source_doc or self.data_source, get_docs=get_docs, as_generator=as_generator
         )
+        filtered = apply_query_filters_for_datasource(sources, query)
+        return filtered if as_generator else list(filtered)
 
     def get_insights_table_preview(self, insights_table, limit=100):
         db_table = frappe.get_value("Insights Table", insights_table, "table") or insights_table
@@ -136,12 +140,13 @@ class VirtualDB(BaseDatabase):
         return results
 
     def build_query(self, query):
-        for source_doc in self.get_source_docs(get_docs=True, as_generator=True):
+        for source_doc in self.get_source_docs(get_docs=True, as_generator=True, query=query):
             return source_doc.build_query(query)
 
-    def run_query(self, query):
+    def run_query(self, original_query):
         results = []
-        source_docs = self.get_source_docs(get_docs=True)
+        query = remove_datasource_filters(original_query)
+        source_docs = self.get_source_docs(get_docs=True, query=original_query)
 
         def run_serial():
             for source_doc in source_docs:

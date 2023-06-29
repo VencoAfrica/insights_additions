@@ -1,3 +1,6 @@
+import json
+import operator
+
 import frappe
 import pandas as pd
 
@@ -246,3 +249,78 @@ def validate_no_cycle_in_sources(data_source_doc):
     _, cycle_source = get_nested_sources_for_virtual(data_source)
     if cycle_source:
         frappe.throw(f"Cycle detected in data sources: {frappe.as_json(cycle_source)}")
+
+
+def compare(val1, condition, val2, fieldtype=None):
+    # frappe.compare
+
+    operator_map = {
+        **frappe.utils.operator_map,
+        "is": lambda a, b: bool(a) if b.lower() == "set" else not bool(a),
+        "not_in": frappe.utils.operator_map["not in"],
+        "starts_with": frappe.utils.operator_map["^"],
+        "ends_with": lambda a, b: (a or "").endswith(b),
+        "contains": lambda a, b: operator.contains(a, b),
+        "not_contains": lambda a, b: not operator.contains(a, b),
+    }
+
+    ret = False
+    if fieldtype:
+        val1 = frappe.utils.cast(fieldtype, val1)
+        val2 = frappe.utils.cast(fieldtype, val2)
+    if condition in operator_map:
+        ret = operator_map[condition](val1, val2)
+
+    return ret
+
+
+def apply_query_filters_for_datasource(sources, query):
+    from insights.insights.doctype.insights_dashboard.utils import (
+        convert_into_simple_filter,
+    )
+
+    filters = frappe.parse_json(query.filters) if (query and query.filters) else {}
+    related = []
+    for row in filters.get("conditions") or []:
+        simple = convert_into_simple_filter(row)
+        if not simple:
+            continue
+        if simple["column"]["column"] == "data_source":
+            related.append(simple)
+
+    if related:
+        for source in sources:
+            val = source
+            if isinstance(source, frappe.model.document.Document):
+                val = source.name
+            for row in related:
+                if compare(val, row["operator"], row["value"]):
+                    yield source
+    else:
+        for x in sources:
+            yield x
+
+
+def remove_datasource_filters(query):
+    if not query.filters:
+        return query
+
+    from insights.insights.doctype.insights_dashboard.utils import (
+        convert_into_simple_filter,
+    )
+
+    filters = frappe.parse_json(query.filters)
+    to_remove = []
+    for row in filters.conditions[:]:
+        simple = convert_into_simple_filter(row)
+        if not simple:
+            continue
+        if simple["column"]["column"] == "data_source":
+            to_remove.append(row)
+
+    if to_remove:
+        filters.conditions = [x for x in filters.conditions if x not in to_remove]
+        new_query = frappe.copy_doc(query)
+        new_query.filters = json.dumps(filters)
+        return new_query
+    return query
