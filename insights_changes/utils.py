@@ -145,6 +145,23 @@ def set_table_columns_for_df(data_frame, table_name, virtual_data_source):
     return data_frame[column_names]
 
 
+def is_sum_query(query_doc):
+    if query_doc.is_native_query:
+        return False
+    cols = query_doc.columns
+    if len(cols) != 1:
+        return False
+    return cols[0].aggregation == "Sum"
+
+
+def apply_transforms(df, query_doc):
+    """perform operations such as summing the values when the initial query is a sum"""
+    # TODO add other operations
+    if is_sum_query(query_doc):
+        df = df.sum().to_frame().T
+    return df
+
+
 def merge_query_results(results, query_doc, base_query_doc=None):
     include_data_source = False
     for col in (base_query_doc or query_doc).columns:
@@ -172,6 +189,8 @@ def merge_query_results(results, query_doc, base_query_doc=None):
             data_source_col = "data_source" if is_lowercase_columns() else "Data Source"
             new_df.insert(0, data_source_col, data_source)
         df = pd.concat([df, new_df], ignore_index=True)
+
+    df = apply_transforms(df, base_query_doc or query_doc)
 
     colnames = []
     df_cols = set(df.columns)
