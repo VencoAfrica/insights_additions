@@ -1,9 +1,9 @@
 from . import __version__ as app_version  # noqa: F401
 
-app_name = "insights_changes"
-app_title = "Insights Changes"
+app_name = "insights_additions"
+app_title = "Insights Additions"
 app_publisher = "Venco Ltd"
-app_description = "Insights Changes"
+app_description = "Insights Additions"
 app_email = "dev@venco.co"
 app_license = "MIT"
 
@@ -11,15 +11,15 @@ app_license = "MIT"
 # ------------------
 
 # include js, css files in header of desk.html
-# app_include_css = "/assets/insights_changes/css/insights_changes.css"
-# app_include_js = "/assets/insights_changes/js/insights_changes.js"
+# app_include_css = "/assets/insights_additions/css/insights_additions.css"
+# app_include_js = "/assets/insights_additions/js/insights_additions.js"
 
 # include js, css files in header of web template
-# web_include_css = "/assets/insights_changes/css/insights_changes.css"
-# web_include_js = "/assets/insights_changes/js/insights_changes.js"
+# web_include_css = "/assets/insights_additions/css/insights_additions.css"
+# web_include_js = "/assets/insights_additions/js/insights_additions.js"
 
 # include custom scss in every website theme (without file extension ".scss")
-# website_theme_scss = "insights_changes/public/scss/website"
+# website_theme_scss = "insights_additions/public/scss/website"
 
 # include js, css files in header of web form
 # webform_include_js = {"doctype": "public/js/doctype.js"}
@@ -57,27 +57,27 @@ doctype_js = {"Insights Data Source": "public/js/doctype.js"}
 
 # add methods and filters to jinja environment
 # jinja = {
-# 	"methods": "insights_changes.utils.jinja_methods",
-# 	"filters": "insights_changes.utils.jinja_filters"
+# 	"methods": "insights_additions.utils.jinja_methods",
+# 	"filters": "insights_additions.utils.jinja_filters"
 # }
 
 # Installation
 # ------------
 
-# before_install = "insights_changes.install.before_install"
-# after_install = "insights_changes.install.after_install"
+# before_install = "insights_additions.install.before_install"
+# after_install = "insights_additions.install.after_install"
 
 # Uninstallation
 # ------------
 
-# before_uninstall = "insights_changes.uninstall.before_uninstall"
-# after_uninstall = "insights_changes.uninstall.after_uninstall"
+# before_uninstall = "insights_additions.uninstall.before_uninstall"
+# after_uninstall = "insights_additions.uninstall.after_uninstall"
 
 # Desk Notifications
 # ------------------
 # See frappe.core.notifications.get_notification_config
 
-# notification_config = "insights_changes.notifications.get_notification_config"
+# notification_config = "insights_additions.notifications.get_notification_config"
 
 # Permissions
 # -----------
@@ -99,9 +99,9 @@ doctype_js = {"Insights Data Source": "public/js/doctype.js"}
 # 	"ToDo": "custom_app.overrides.CustomToDo"
 # }
 override_doctype_class = {
-    "Insights Table": "insights_changes.overrides.doctype.CustomInsightsTable",
-    "Insights Data Source": "insights_changes.overrides.doctype.CustomInsightsDataSource",
-    "Insights Query": "insights_changes.overrides.doctype.CustomInsightsQuery",
+    "Insights Table": "insights_additions.overrides.doctype.CustomInsightsTable",
+    "Insights Data Source": "insights_additions.overrides.doctype.CustomInsightsDataSource",
+    "Insights Query": "insights_additions.overrides.doctype.CustomInsightsQuery",
 }
 
 # Document Events
@@ -121,45 +121,45 @@ override_doctype_class = {
 
 # scheduler_events = {
 # 	"all": [
-# 		"insights_changes.tasks.all"
+# 		"insights_additions.tasks.all"
 # 	],
 # 	"daily": [
-# 		"insights_changes.tasks.daily"
+# 		"insights_additions.tasks.daily"
 # 	],
 # 	"hourly": [
-# 		"insights_changes.tasks.hourly"
+# 		"insights_additions.tasks.hourly"
 # 	],
 # 	"weekly": [
-# 		"insights_changes.tasks.weekly"
+# 		"insights_additions.tasks.weekly"
 # 	],
 # 	"monthly": [
-# 		"insights_changes.tasks.monthly"
+# 		"insights_additions.tasks.monthly"
 # 	],
 # }
 
 # Testing
 # -------
 
-# before_tests = "insights_changes.install.before_tests"
+# before_tests = "insights_additions.install.before_tests"
 
 # Overriding Methods
 # ------------------------------
 #
 # override_whitelisted_methods = {
-# 	"frappe.desk.doctype.event.event.get_events": "insights_changes.event.get_events"
+# 	"frappe.desk.doctype.event.event.get_events": "insights_additions.event.get_events"
 # }
 override_whitelisted_methods = {
-    "insights.api.get_data_source": "insights_changes.overrides.functions.get_data_source",
-    "insights.api.get_tables": "insights_changes.overrides.functions.get_tables",
-    "frappe.desk.doctype.tag.tag.add_tag": "insights_changes.overrides.functions.add_tag",
-    "insights.insights.doctype.insights_dashboard.insights_dashboard.get_queries_column": "insights_changes.overrides.functions.get_queries_column",
+    "insights.api.get_tables": "insights_additions.overrides.functions.get_tables",
+    "insights.api.get_table_name": "insights_additions.overrides.functions.get_table_name",
+    "frappe.desk.doctype.tag.tag.add_tag": "insights_additions.overrides.functions.add_tag",
+    "insights.insights.doctype.insights_dashboard.insights_dashboard.get_queries_column": "insights_additions.overrides.functions.get_queries_column",
 }
 #
 # each overriding function accepts a `data` argument;
 # generated from the base implementation of the doctype dashboard,
 # along with any modifications made in other Frappe apps
 # override_doctype_dashboards = {
-# 	"Task": "insights_changes.task.get_dashboard_data"
+# 	"Task": "insights_additions.task.get_dashboard_data"
 # }
 
 # exempt linked doctypes from being automatically cancelled
@@ -173,13 +173,13 @@ override_whitelisted_methods = {
 
 # Request Events
 # ----------------
-# before_request = ["insights_changes.utils.before_request"]
-# after_request = ["insights_changes.utils.after_request"]
+# before_request = ["insights_additions.utils.before_request"]
+# after_request = ["insights_additions.utils.after_request"]
 
 # Job Events
 # ----------
-# before_job = ["insights_changes.utils.before_job"]
-# after_job = ["insights_changes.utils.after_job"]
+# before_job = ["insights_additions.utils.before_job"]
+# after_job = ["insights_additions.utils.after_job"]
 
 # User Data Protection
 # --------------------
@@ -209,5 +209,5 @@ override_whitelisted_methods = {
 # --------------------------------
 
 # auth_hooks = [
-# 	"insights_changes.auth.validate"
+# 	"insights_additions.auth.validate"
 # ]

@@ -11,12 +11,14 @@ from insights.insights.doctype.insights_data_source.sources.frappe_db import Fra
 from insights.insights.doctype.insights_data_source.sources.mariadb import MariaDB
 from insights.insights.doctype.insights_query.insights_query import InsightsQuery
 from insights.insights.doctype.insights_table.insights_table import InsightsTable
-from insights_changes.data_source import VirtualDB
-from insights_changes.overrides.functions import get_tables
-from insights_changes.overrides.functions.is_frappe_db import is_frappe_db
-from insights_changes.utils import (
+from insights_additions.data_source import VirtualDB
+from insights_additions.overrides.functions import get_tables
+from insights_additions.overrides.functions.is_frappe_db import is_frappe_db
+from insights_additions.utils import (
     add_data_source_column_to_table_columns,
     get_columns_for_virtual_table,
+    get_sources_for_virtual,
+    make_virtual_table_name,
     split_virtual_table_name,
     validate_no_cycle_in_sources,
 )
@@ -82,7 +84,30 @@ class CustomInsightsTable(InsightsTable):
 class CustomInsightsDataSource(InsightsDataSource):
     """`Virtual InsightsTable`"""
 
+    @frappe.whitelist()
+    def get_tables(self):
+        if not self.composite_datasource:
+            return super().get_tables()
+
+        # get tables for each source and combine
+        seen = {}
+        for source in get_sources_for_virtual(self):
+            for table in source.get_tables():
+                key = (table.table, table.label, table.hidden)
+                # TODO: how to decide which table to incude? ie which data source is the reference
+                if key not in seen:
+                    # if table for one source is hidden and another isn't, set as not hidden
+                    # TODO: update
+                    if (*key[:2], 1 - key[-1]) in seen:
+                        if not key[-1]:
+                            continue
+                        seen.pop(key)
+                    table["name"] = make_virtual_table_name(table.name, self.name)
+                    seen[key] = table
+        return list(seen.values())
+
     def get_database(self):
+        self.get_tables()
         conn_args = {
             "data_source": self.name,
             "host": self.host,

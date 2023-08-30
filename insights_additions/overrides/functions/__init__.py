@@ -1,49 +1,18 @@
 import frappe
 from frappe.desk.doctype.tag.tag import add_tag as add_tag_original
-from insights.api import get_data_source as get_data_source_original
 from insights.decorators import check_role
 from insights.insights.doctype.insights_team.insights_team import (
     check_data_source_permission,
+    check_table_permission,
     get_permission_filter,
 )
-from insights_changes.utils import (
+from insights_additions.utils import (
     get_sources_for_virtual,
     make_virtual_table_name,
     validate_no_cycle_in_sources,
 )
 
 fields_for_get_all_tables = ["name", "table", "label", "hidden"]
-
-
-@frappe.whitelist()
-@check_role("Insights User")
-def get_data_source(name):
-    check_data_source_permission(name)
-    doc = frappe.get_doc("Insights Data Source", name)
-    if not doc.composite_datasource:
-        return get_data_source_original(name)
-
-    # get tables for each source and combine
-    seen = {}
-    for source in get_sources_for_virtual(name, get_docs=False):
-        tables = get_all_tables(source)
-        for table in tables:
-            key = tuple(table[k] for k in fields_for_get_all_tables[1:])
-            # TODO: how to decide which table to incude? ie which data source is the reference
-            if key not in seen:
-                # if table for one source is hidden and another isn't, set as not hidden
-                # TODO: update
-                if (*key[:3], 1 - key[-1]) in seen:
-                    if not key[-1]:
-                        continue
-                    seen.pop(key)
-                table["name"] = make_virtual_table_name(table["name"], name)
-                seen[key] = table
-
-    return {
-        "doc": doc.as_dict(),
-        "tables": list(seen.values()),
-    }
 
 
 def get_all_tables(data_source=None):
@@ -145,3 +114,13 @@ def get_queries_column(query_names):
             )
 
     return columns
+
+
+@frappe.whitelist()
+@check_role("Insights User")
+def get_table_name(data_source, table):
+    check_table_permission(data_source, table)
+    for source in get_sources_for_virtual(data_source, get_docs=False, as_generator=True):
+        name = frappe.get_value("Insights Table", {"data_source": source, "table": table}, "name")
+        if name:
+            return make_virtual_table_name(name, data_source)

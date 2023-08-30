@@ -162,10 +162,16 @@ def apply_transforms(df, query_doc):
     return df
 
 
+data_source_str = ["data_source", "Data Source"]
+
+
 def merge_query_results(results, query_doc, base_query_doc=None):
     include_data_source = False
-    for col in (base_query_doc or query_doc).columns:
-        if col.column == "data_source":
+    qry_doc = base_query_doc or query_doc
+    for col in qry_doc.columns or (
+        frappe._dict(col) for col in json.loads(qry_doc.json or "{}").get("columns", [])
+    ):
+        if col.column == data_source_str[0]:
             include_data_source = True
             break
 
@@ -180,17 +186,21 @@ def merge_query_results(results, query_doc, base_query_doc=None):
             continue
         columns = result[0]
         if not first_columns:
-            first_columns = columns
+            first_columns = [*columns]
+            if include_data_source:
+                first_columns.insert(
+                    0, {"label": data_source_str[1], "type": "String", "options": {}}
+                )
 
         data = result[1:] if any(len(row) for row in result[1:]) else []
         df_columns = [col["label"] for col in columns]
         new_df = pd.DataFrame(data, columns=df_columns)
         if include_data_source:
-            data_source_col = "data_source" if is_lowercase_columns() else "Data Source"
+            data_source_col = data_source_str[0 if is_lowercase_columns() else 1]
             new_df.insert(0, data_source_col, data_source)
         df = pd.concat([df, new_df], ignore_index=True)
 
-    df = apply_transforms(df, base_query_doc or query_doc)
+    df = apply_transforms(df, qry_doc)
 
     colnames = []
     df_cols = set(df.columns)
@@ -220,27 +230,48 @@ def query_with_columns_in_table(query, data_source_name):
 
     tables = [row.table for row in query.tables]
     columns = [row.column for row in query.columns]
-    if not (tables and columns):
+    if not ((tables and columns) or query.json):
         return query
 
-    found = frappe.db.sql(
-        query_str,
-        {
-            "data_source": data_source_name,
-            "tables": tables,
-            "col_names": columns,
-        },
+    found = (
+        frappe.db.sql(
+            query_str,
+            {
+                "data_source": data_source_name,
+                "tables": tables,
+                "col_names": columns,
+            },
+        )
+        if (tables and columns)
+        else None
     )
 
     new_query = frappe.copy_doc(query)
     # remove columns not found in table for data source
-    cols_found = set(found)
-    new_query.columns = [
-        row
-        for row in new_query.columns
-        if row.column != "data_source"
-        and (row.aggregation or (row.column, row.table) in cols_found)
-    ]
+    cols_found = None if found is None else set(found)
+    new_query.columns = (
+        new_query.columns
+        if found is None
+        else [
+            row
+            for row in new_query.columns
+            if row.column != "data_source"
+            and (row.aggregation or (row.column, row.table) in cols_found)
+        ]
+    )
+
+    if new_query.json:
+        new_query_json = json.loads(new_query.json)
+        new_query_json["columns"] = [
+            row
+            for row in (new_query_json.get("columns") or [])
+            if row.get("column") != "data_source"
+            and (
+                cols_found is None
+                or (row.get("aggregation") or (row.get("column"), row.get("table")) in cols_found)
+            )
+        ]
+        new_query.json = json.dumps(new_query_json)
     return new_query
 
 

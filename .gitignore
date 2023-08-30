@@ -3,5 +3,5 @@
 *.egg-info
 *.swp
 tags
-insights_changes/docs/current
+insights_additions/docs/current
 node_modules/

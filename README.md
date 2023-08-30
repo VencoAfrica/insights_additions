@@ -1,6 +1,6 @@
-## Insights Changes
+## Insights Additions
 
-Insights Changes
+Insights Additions
 
 #### License
 

@@ -8,7 +8,7 @@ from insights.insights.doctype.insights_data_source.sources.base_database import
     BaseDatabase,
 )
 from insights.insights.query_builders.sql_builder import SQLQueryBuilder
-from insights_changes.utils import (
+from insights_additions.utils import (
     apply_query_filters_for_datasource,
     get_sources_for_virtual,
     merge_query_results,
@@ -122,21 +122,10 @@ class VirtualDB(BaseDatabase):
             "length": total_length,
         }
 
-    def execute_query(
-        self,
-        sql,
-        pluck=False,
-        return_columns=False,
-        replace_query_tables=False,
-        is_native_query=False,
-    ):
+    def execute_query(self, sql, pluck=False, return_columns=False, cached=False):
         results = []
         for source_doc in self.get_source_docs():
-            results.append(
-                source_doc.db.execute_query(
-                    sql, pluck, return_columns, replace_query_tables, is_native_query
-                )
-            )
+            results.append(source_doc.db.execute_query(sql, pluck, return_columns, cached))
         return results
 
     def build_query(self, query):
