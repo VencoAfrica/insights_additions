@@ -102,6 +102,7 @@ class CustomInsightsTable(InsightsTable):
         )
         # use self.name instead of self.table (data_source.get_table_preview)
         return data_source.get_insights_table_preview(self.name)
+    
 class CustomInsightsDataSource(InsightsDataSource):
     """`Virtual InsightsTable`"""
 
