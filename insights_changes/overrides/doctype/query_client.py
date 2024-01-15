@@ -26,9 +26,6 @@ class CustomInsightsQueryClient:
                 - right_columns (list): The columns from the right table involved in the join.
                 - saved_links (list): The saved links between the left and right tables.
         """
-        print("the data_source is: ", self.data_source)
-        print("is the data source a composite datasource? :", frappe.db.get_value("Insights Data Source", self.data_source, "composite_datasource"))
-        print("")
 
         if not frappe.db.get_value("Insights Data Source", self.data_source, "composite_datasource"):
             ##call original function for fetching join options
@@ -36,12 +33,7 @@ class CustomInsightsQueryClient:
         
         links = []
         #get the first data source as sample source from the composite data source
-        source = get_sources_for_virtual(self.data_source)[0]
-        print("left_table: ", left_table)
-        print("right_table: ", right_table)
-        print("source: ", source)
-        print("source.data_source: ", source.name)
-        print("")
+        source = get_sources_for_virtual(self.data_source)[0]        
         left_doc = frappe.get_cached_doc(
             "Insights Table",
             {
@@ -57,32 +49,27 @@ class CustomInsightsQueryClient:
             },
         )
 
-        links = []
         for link in left_doc.table_links:
             if link.foreign_table == right_table:
-                link_dict = frappe._dict({
-                    "left": link.primary_key,
-                    "right": link.foreign_key,
-                })
-                if link_dict not in links:
-                    links.append(link_dict)
-
-        # Remove duplicate links
-        # links = list({tuple(link.items()) for link in links})
+                links.append(
+                    frappe._dict(
+                        {
+                            "left": link.primary_key,
+                            "right": link.foreign_key,
+                        }
+                    )
+                )
                     
         left_columns = left_doc.get_columns()
         right_columns = right_doc.get_columns()
 
-        final_left_columns = [column for left in links for column in left_columns if column.column == left.left]
-        final_right_columns = [column for right in links for column in right_columns if column.column == right.right]
-
         return {
-            "left_columns": final_left_columns,
-            "right_columns": final_right_columns,
+            "left_columns": left_columns,
+            "right_columns": right_columns,
             "saved_links": links,
         }
 
-####original code below
+#### original code below
     @frappe.whitelist()
     def duplicate(self):
         new_query = frappe.copy_doc(self)
@@ -299,7 +286,6 @@ class CustomInsightsQueryClient:
             column.get("table"), column.get("column"), search_text
         )
 
-    print("running original function fetch_join_options_original")
     @frappe.whitelist()
     def fetch_join_options_original(self, left_table, right_table):
         left_doc = frappe.get_cached_doc(
