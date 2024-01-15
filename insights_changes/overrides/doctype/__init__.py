@@ -336,9 +336,11 @@ class CustomInsightsQuery(InsightsQueryValidation, CustomInsightsQueryClient, Do
 
         if not self.is_native_query:
             results[0] = [ResultColumn.make(query_column=c) for c in self.get_columns()]
+            # remove data source label
+            del results[0][0]
             return results
 
-        columns = results[0]
+        columns = results[0][1:]
         rows_df = pd.DataFrame(results[1:], columns=[c["label"] for c in columns])
         # create a row that contains values in each column
         values_row = []
