@@ -144,21 +144,15 @@ def set_table_columns_for_df(data_frame, table_name, virtual_data_source):
             df_column_names.add(col_name)
     return data_frame[column_names]
 
-
+# TODO: Remove the option to have data source column in the table
 def merge_query_results(results, query_doc, base_query_doc=None):
-    include_data_source = False
-    for col in (base_query_doc or query_doc).columns:
-        if col.column == "data_source":
-            include_data_source = True
-            break
-
     first_columns = []
     df = pd.DataFrame()
 
     def is_lowercase_columns():
         return first_columns and first_columns[0]["label"].islower()
 
-    for data_source, result in results:
+    for _, result in results:  # Ignoring data_source here
         if not (result and result[0] and isinstance(result[0][0], dict)):
             continue
         columns = result[0]
@@ -168,9 +162,6 @@ def merge_query_results(results, query_doc, base_query_doc=None):
         data = result[1:] if any(len(row) for row in result[1:]) else []
         df_columns = [col["label"] for col in columns]
         new_df = pd.DataFrame(data, columns=df_columns)
-        if include_data_source:
-            data_source_col = "data_source" if is_lowercase_columns() else "Data Source"
-            new_df.insert(0, data_source_col, data_source)
         df = pd.concat([df, new_df], ignore_index=True)
 
     colnames = []
@@ -186,7 +177,6 @@ def merge_query_results(results, query_doc, base_query_doc=None):
         df = df[colnames]
 
     return [first_columns] + df.to_numpy().tolist()
-
 
 def query_with_columns_in_table(query, data_source_name):
     """create a new query containing only the columns available in the data source"""
@@ -324,3 +314,21 @@ def remove_datasource_filters(query):
         new_query.filters = json.dumps(filters)
         return new_query
     return query
+
+
+def insights_table_sync():
+    try:
+        #get value of insights datasource where composite_datasource is 1 and name is like "VENCO Sites"
+        source = frappe.db.get_value("Insights Data Source", {"composite_datasource": 1, "name": ["like", "%VENCO Sites%"]}, "name")
+
+        inner_sources = get_sources_for_virtual(source)
+
+        for source_object in inner_sources:
+            frappe.enqueue('insights_changes.utils.enqueue_sync_tables', source_name=source_object.name, job_name=f"sync_tables_for_{source_object.name}", queue='long')
+
+    except Exception as e:
+        frappe.log_error(title="Insights Table Sync Failed", message=frappe.get_traceback())
+
+def enqueue_sync_tables(source_name):
+    source_object = frappe.get_doc("Insights Data Source", source_name)
+    source_object.sync_tables()
