@@ -338,7 +338,7 @@ class CustomInsightsQuery(InsightsQueryValidation, CustomInsightsQueryClient, Do
             results[0] = [ResultColumn.make(query_column=c) for c in self.get_columns()]
             return results
 
-        columns = results[0][1:]
+        columns = results[0]
         rows_df = pd.DataFrame(results[1:], columns=[c["label"] for c in columns])
         # create a row that contains values in each column
         values_row = []
