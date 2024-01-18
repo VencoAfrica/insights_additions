@@ -146,13 +146,19 @@ def set_table_columns_for_df(data_frame, table_name, virtual_data_source):
 
 # TODO: Remove the option to have data source column in the table
 def merge_query_results(results, query_doc, base_query_doc=None):
+    include_data_source = False
+    for col in (base_query_doc or query_doc).columns:
+        if col.column == "data_source":
+            include_data_source = True
+            break
+
     first_columns = []
     df = pd.DataFrame()
 
     def is_lowercase_columns():
         return first_columns and first_columns[0]["label"].islower()
 
-    for _, result in results:  # Ignoring data_source here
+    for data_source, result in results:
         if not (result and result[0] and isinstance(result[0][0], dict)):
             continue
         columns = result[0]
@@ -162,6 +168,9 @@ def merge_query_results(results, query_doc, base_query_doc=None):
         data = result[1:] if any(len(row) for row in result[1:]) else []
         df_columns = [col["label"] for col in columns]
         new_df = pd.DataFrame(data, columns=df_columns)
+        if include_data_source:
+            data_source_col = "data_source" if is_lowercase_columns() else "Data Source"
+            new_df.insert(0, data_source_col, data_source)
         df = pd.concat([df, new_df], ignore_index=True)
 
     colnames = []
@@ -177,6 +186,7 @@ def merge_query_results(results, query_doc, base_query_doc=None):
         df = df[colnames]
 
     return [first_columns] + df.to_numpy().tolist()
+
 
 def query_with_columns_in_table(query, data_source_name):
     """create a new query containing only the columns available in the data source"""
