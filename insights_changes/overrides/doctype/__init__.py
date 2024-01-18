@@ -336,8 +336,6 @@ class CustomInsightsQuery(InsightsQueryValidation, CustomInsightsQueryClient, Do
 
         if not self.is_native_query:
             results[0] = [ResultColumn.make(query_column=c) for c in self.get_columns()]
-            # remove data source label
-            del results[0][0]
             return results
 
         columns = results[0][1:]
@@ -392,7 +390,7 @@ class CustomInsightsQuery(InsightsQueryValidation, CustomInsightsQueryClient, Do
 
     def get_columns(self):
         if not self.is_native_query:
-            return self.columns or self.fetch_columns()
+            return self.columns or self.fetch_columns_without_datasource()
 
         # make column from results first row
         results = self.load_results(fetch_if_not_exists=True)
@@ -403,10 +401,16 @@ class CustomInsightsQuery(InsightsQueryValidation, CustomInsightsQueryClient, Do
                 {
                     "label": col["label"],
                     "type": col["type"],
+                    "options": col["options"],
                 }
             )
             for col in results[0]
         ]
+    
+    def fetch_columns_without_datasource(self):
+        original_columns = self.fetch_columns()
+        original_columns = [col for col in original_columns if col["column"] != "Data Source" and col["column"] != "data_source"]
+        return original_columns
 
     def apply_transformations(self, results):
         if self.is_native_query:
