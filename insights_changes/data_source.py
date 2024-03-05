@@ -73,8 +73,15 @@ class VirtualDB(BaseDatabase):
 
         def run_serial():
             for source_doc in source_docs:
-                data, length = get_data_and_length(source_doc)
-                results.append((source_doc.name, data, length))
+                try:
+                    data, length = get_data_and_length(source_doc)
+                    results.append((source_doc.name, data, length))
+                except Exception:
+                    frappe.log_error(
+                        "Data Source: %r generated an exception: %s"
+                            % (source_doc.name, frappe.get_traceback(with_context=True)),
+                            "VirtualDB.get_insights_table_preview.run_serial",
+                    )
 
         def run_concurrent():
             site = str(frappe.local.site)
@@ -111,6 +118,7 @@ class VirtualDB(BaseDatabase):
             column_names = [col["label"] for col in columns]
             new_df = pd.DataFrame(data)
             new_df.columns = column_names
+            #TODO - remove data_source column from df if it exists
             new_df.insert(0, "data_source", source_docname)
             df = pd.concat([df, new_df], ignore_index=True)
             total_length += length
@@ -150,9 +158,17 @@ class VirtualDB(BaseDatabase):
 
         def run_serial():
             for source_doc in source_docs:
-                new_query = query_with_columns_in_table(query, source_doc.name)
-                result = source_doc.db.run_query(new_query)
-                results.append((source_doc.name, result))
+                try:
+                    new_query = query_with_columns_in_table(query, source_doc.name)
+                    result = source_doc.db.run_query(new_query)
+                    results.append((source_doc.name, result))
+                except Exception:
+                    frappe.log_error(
+                        "Data Source: %r generated an exception: %s"
+                            % (source_doc.name, frappe.get_traceback(with_context=True)),
+                            "VirtualDB.run_query.run_serial",
+                    )
+
 
         def run_concurrent():
             site = str(frappe.local.site)
@@ -188,6 +204,7 @@ class VirtualDB(BaseDatabase):
     #     return super().get_table_columns(table)
 
     def get_column_options(self, table, column, search_text=None, limit=50):
+        #TODO - yet another data source column to consider removing
         if column == "data_source":
             return self.get_source_docs(get_docs=False)
 
@@ -212,7 +229,14 @@ class VirtualDB(BaseDatabase):
 
         def run_serial():
             for source_doc in source_docs:
-                results.extend(get_column_options(source_doc) or [])
+                try:
+                    results.extend(get_column_options(source_doc) or [])
+                except Exception:
+                    frappe.log_error(
+                        "Data Source: %r generated an exception: %s"
+                            % (source_doc, frappe.get_traceback(with_context=True)),
+                            "VirtualDB.get_column_options.run_serial",
+                    )
 
         def run_concurrent():
             site = str(frappe.local.site)
@@ -220,6 +244,7 @@ class VirtualDB(BaseDatabase):
             def get_data(source_doc):
                 frappe.connect(site=site)
                 return get_column_options(source_doc) or []
+                
 
             with concurrent.futures.ThreadPoolExecutor() as executor:
                 futures = {executor.submit(get_data, doc): doc.name for doc in source_docs}

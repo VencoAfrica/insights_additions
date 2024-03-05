@@ -144,7 +144,7 @@ def set_table_columns_for_df(data_frame, table_name, virtual_data_source):
             df_column_names.add(col_name)
     return data_frame[column_names]
 
-
+# TODO: Remove the option to have data source column in the table
 def merge_query_results(results, query_doc, base_query_doc=None):
     include_data_source = False
     for col in (base_query_doc or query_doc).columns:
@@ -324,3 +324,21 @@ def remove_datasource_filters(query):
         new_query.filters = json.dumps(filters)
         return new_query
     return query
+
+
+def insights_table_sync():
+    try:
+        #get value of insights datasource where composite_datasource is 1 and name is like "VENCO Sites"
+        source = frappe.db.get_value("Insights Data Source", {"composite_datasource": 1, "name": ["like", "%VENCO Sites%"]}, "name")
+
+        inner_sources = get_sources_for_virtual(source)
+
+        for source_object in inner_sources:
+            frappe.enqueue('insights_changes.utils.enqueue_sync_tables', source_name=source_object.name, job_name=f"sync_tables_for_{source_object.name}", queue='long')
+
+    except Exception as e:
+        frappe.log_error(title="Insights Table Sync Failed", message=frappe.get_traceback())
+
+def enqueue_sync_tables(source_name):
+    source_object = frappe.get_doc("Insights Data Source", source_name)
+    source_object.sync_tables()
